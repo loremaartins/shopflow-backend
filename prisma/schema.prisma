@@ -13,6 +13,7 @@ model User {
   email     String   @unique
   password  String
   role      String   @default("CLIENTE")
+  orders    Order[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -26,14 +27,36 @@ model Category {
 }
 
 model Product {
-  id          String   @id @default(uuid())
+  id          String      @id @default(uuid())
   name        String
-  description String
+  description String?
   price       Float
-  stock       Int      @default(0)
+  stock       Int         @default(0)
   imageUrl    String?
-  categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  categoryId  String?
+  category    Category?   @relation(fields: [categoryId], references: [id])
+  orderItems  OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Order {
+  id        String      @id @default(uuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  items     OrderItem[]
+  total     Float
+  status    String      @default("PENDENTE")
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float
 }
