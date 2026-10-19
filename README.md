@@ -13,7 +13,7 @@ API RESTful desenvolvida para um sistema de e-commerce e gestão de estoque.
 
 ## ⚙️ Principais Funcionalidades
 * Gestão de Usuários (Cadastro e Login)
-* Catálogo de Produtos
+* 🛍 Catálogo de Produtos
 * Processamento de Pedidos e Carrinho
 
 ---
