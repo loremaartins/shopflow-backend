@@ -1,24 +1,3 @@
-# Dependências do Node
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Compilação/Build
-dist/
-build/
-
-# Variáveis de ambiente (Chaves secretas, senhas)
+node_modules
+dist
 .env
-.env.local
-.env.*.local
-
-# Arquivos de sistema/editores
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
-
-# Prisma
-prisma/migrations/dev.db
-prisma/migrations/dev.db-journal

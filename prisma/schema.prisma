@@ -1,5 +1,5 @@
 datasource db {
-  provider = "postgresql" // ou "sqlite" / "mysql"
+  provider = "postgresql" 
   url      = env("DATABASE_URL")
 }
 
@@ -7,108 +7,92 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// ==========================================
-// ENUMS
-// ==========================================
-
-enum Role {
-  CUSTOMER
-  ADMIN
-}
-
-enum OrderStatus {
-  PENDING
-  PAID
-  SHIPPED
-  DELIVERED
-  CANCELED
-}
-
-// ==========================================
-// MODELOS
-// ==========================================
-
+// 1. Gerenciamento de Usuários e Autenticação
 model User {
   id        String   @id @default(uuid())
-  name      String
   email     String   @unique
   password  String
+  name      String
   role      Role     @default(CUSTOMER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  addresses Address[]
   orders    Order[]
-
-  @@map("users")
+  cart      Cart?
 }
 
-model Address {
-  id         String   @id @default(uuid())
-  userId     String
-  street     String
-  city       String
-  state      String
-  zipCode    String
-  country    String   @default("Brasil")
-  createdAt  DateTime @default(now())
+enum Role {
+  ADMIN
+  CUSTOMER
+}
 
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("addresses")
+// 2. Catálogo de Produtos e Categorias
+model Product {
+  id          String      @id @default(uuid())
+  name        String
+  description String?
+  price       Decimal
+  stock       Int         @default(0)
+  imageUrl    String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  categoryId  String
+  category    Category    @relation(fields: [categoryId], references: [id])
+  orderItems  OrderItem[]
+  cartItems   CartItem[]
 }
 
 model Category {
-  id          String    @id @default(uuid())
-  name        String    @unique
-  description String?
-  createdAt   DateTime  @default(now())
-
-  products    Product[]
-
-  @@map("categories")
+  id        String    @id @default(uuid())
+  name      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
 }
 
-model Product {
-  id          String   @id @default(uuid())
-  categoryId  String
-  name        String
-  description String?
-  price       Float
-  stock       Int      @default(0)
-  imageUrl    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  category    Category    @relation(fields: [categoryId], references: [id])
-  orderItems  OrderItem[]
-
-  @@map("products")
+// 3. Carrinho de Compras (Motor Central)
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 }
 
+model CartItem {
+  id        String   @id @default(uuid())
+  cartId    String
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int      @default(1)
+}
+
+// 4. Fluxo de Pedidos (Vendas)
 model Order {
-  id        String      @id @default(uuid())
-  userId    String
-  status    OrderStatus @default(PENDING)
-  total     Float
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-
-  user      User        @relation(fields: [userId], references: [id])
-  items     OrderItem[]
-
-  @@map("orders")
+  id         String      @id @default(uuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id])
+  total      Decimal
+  status     OrderStatus @default(PENDING)
+  items      OrderItem[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 }
 
 model OrderItem {
   id        String   @id @default(uuid())
   orderId   String
-  productId String
-  quantity  Int
-  price     Float    // Guarda o preço do produto no momento da compra
-
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
   product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Decimal  // Salva o preço histórico do produto no momento da compra
+}
 
-  @@map("order_items")
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
 }
