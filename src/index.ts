@@ -1,10 +1,11 @@
-import express from 'express'
+ import express from 'express'
 import cors from 'cors'
 import { prisma } from './lib/prisma'
 
 const app = express()
 app.use(cors())
 app.use(express.json())
+app.use(express.static('public'));
 
 // Rota inicial de status
 app.get('/', (req, res) => {
@@ -74,32 +75,6 @@ app.get('/categories', async (req, res) => {
     include: { products: true }
   })
   res.json(categories)
-})
-
-app.post('/products', async (req, res) => {
-  try {
-    const { name, description, price, stock, imageUrl, categoryId } = req.body
-    const product = await prisma.product.create({
-      data: {
-        name,
-        description,
-        price,
-        stock: stock ?? 0,
-        imageUrl,
-        categoryId
-      }
-    })
-    res.status(201).json(product)
-  } catch (error) {
-    res.status(400).json({ erro: 'Erro ao criar produto. Verifique o categoryId.' })
-  }
-})
-
-app.get('/products', async (req, res) => {
-  const products = await prisma.product.findMany({
-    include: { category: true }
-  })
-  res.json(products)
 })
 
 app.get('/products/:id', async (req, res) => {
@@ -283,7 +258,32 @@ app.get('/orders/:userId', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 3000;
+app.post("/products", async (req, res) => {
+  try {
+    const { name, description, price, stock, imageUrl } = req.body;
+    if (!name || price === undefined || isNaN(Number(price))) {
+      return res.status(400).json({ erro: "Preencha nome e preço válidos." });
+    }
+    let cat = await prisma.category.findFirst();
+    if (!cat) cat = await prisma.category.create({ data: { name: "Geral" } });
+    const product = await prisma.product.create({
+      data: {
+        name: String(name),
+        description: description ? String(description) : "",
+        price: Number(price),
+        stock: Number(stock) || 10,
+        imageUrl: imageUrl || null,
+        categoryId: cat.id
+      }
+    });
+    res.status(201).json(product);
+  } catch (error) {
+    console.error("Erro ao cadastrar:", error);
+    res.status(500).json({ erro: "Erro interno ao cadastrar produto." });
+  }
+});
+
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`)
-})
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+});

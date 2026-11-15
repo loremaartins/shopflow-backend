@@ -1,0 +1,1 @@
+npx tsx -e "import{PrismaClient}from'@prisma/client';const p=new PrismaClient();async function f(){let c=await p.category.findFirst()||await p.category.create({data:{name:'Geral'}});await p.product.create({data:{name:'Camiseta ShopFlow',description:'Algodao Premium',price:79.9,stock:15,categoryId:c.id}});console.log('PRODUTO CRIADO!')}f()" && npm start
