@@ -259,6 +259,17 @@ app.get('/orders/:userId', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+app.get('/products', async (req, res) => {
+  try {
+    const products = await prisma.product.findMany({
+      include: { category: true }
+    });
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ erro: 'Erro ao listar produtos.' });
+  }
+});
+
 app.post("/products", async (req, res) => {
   try {
     const { name, description, price, stock, imageUrl } = req.body;
