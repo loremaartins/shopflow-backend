@@ -195,10 +195,12 @@
       if (cat && cat.id) defaultCategoryId = cat.id;
     }
 
-    async function loadProducts() {
-      const res = await fetch('/products');
-      const products = await res.json();
+      async function loadProducts() {
+      const res = await fetch('/categories');
+      const categories = await res.json();
+      const products = categories.flatMap(c => c.products || []);
       const container = document.getElementById('products-list');
+
 
       if (!products.length) {
         container.innerHTML = '<p>Nenhum produto cadastrado ainda.</p>';
