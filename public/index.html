@@ -155,19 +155,19 @@
 
   <div id="toast"></div>
 
-  <script>
-    let currentUserId = null;
-    let defaultCategoryId = null;
+<script>
+  let currentUserId = null;
+  let defaultCategoryId = null;
 
-    function showToast(msg) {
-      const t = document.getElementById('toast');
-      t.textContent = msg;
-      t.style.display = 'block';
-      setTimeout(() => t.style.display = 'none', 3000);
-    }
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.display = 'block';
+    setTimeout(() => t.style.display = 'none', 3000);
+  }
 
-    // Garante um usuário e categoria ativos para testar direto na tela
-    async function initSession() {
+  async function initSession() {
+    try {
       const savedUser = localStorage.getItem('shopflow_user');
       if (savedUser) {
         currentUserId = savedUser;
@@ -181,9 +181,11 @@
             password: '123'
           })
         });
-        const user = await res.json();
-        currentUserId = user.id;
-        localStorage.setItem('shopflow_user', currentUserId);
+        if (res.ok) {
+          const user = await res.json();
+          currentUserId = user.id;
+          localStorage.setItem('shopflow_user', currentUserId);
+        }
       }
 
       const catRes = await fetch('/categories', {
@@ -191,18 +193,23 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: 'Geral' })
       });
-      const cat = await catRes.json();
-      if (cat && cat.id) defaultCategoryId = cat.id;
+      if (catRes.ok) {
+        const cat = await catRes.json();
+        if (cat && cat.id) defaultCategoryId = cat.id;
+      }
+    } catch (e) {
+      console.error('Erro na sessão:', e);
     }
+  }
 
-      async function loadProducts() {
-      const res = await fetch('/categories');
-      const categories = await res.json();
-      const products = categories.flatMap(c => c.products || []);
-      const container = document.getElementById('products-list');
+  async function loadProducts() {
+    const container = document.getElementById('products-list');
+    try {
+      const res = await fetch('/products');
+      if (!res.ok) throw new Error('Falha ao buscar produtos');
+      const products = await res.json();
 
-
-      if (!products.length) {
+      if (!Array.isArray(products) || !products.length) {
         container.innerHTML = '<p>Nenhum produto cadastrado ainda.</p>';
         return;
       }
@@ -228,10 +235,14 @@
           </div>
         </div>
       `).join('');
+    } catch (err) {
+      container.innerHTML = '<p>Erro ao carregar produtos. Verifique a API.</p>';
     }
+  }
 
-    async function loadCart() {
-      if (!currentUserId) return;
+  async function loadCart() {
+    if (!currentUserId) return;
+    try {
       const res = await fetch(`/cart/${currentUserId}`);
       if (!res.ok) return;
       const cart = await res.json();
@@ -257,7 +268,7 @@
         total += sub;
         return `
           <div class="cart-item">
-            <span><strong>${item.quantity}x</strong> ${item.product.name}</span>
+            <span>${item.quantity}x ${item.product.name}</span>
             <span>R$ ${sub.toFixed(2).replace('.', ',')}</span>
           </div>
         `;
@@ -265,65 +276,74 @@
 
       totalEl.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
       btn.disabled = false;
+    } catch (e) {
+      console.error(e);
     }
+  }
 
-    async function addToCart(productId) {
-      const res = await fetch(`/cart/${currentUserId}/items`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId, quantity: 1 })
-      });
-      if (res.ok) {
-        showToast('Produto adicionado ao carrinho!');
-        loadCart();
-      } else {
-        showToast('Erro ao adicionar produto.');
-      }
+  async function addToCart(productId) {
+    if (!currentUserId) await initSession();
+    const res = await fetch('/cart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: currentUserId, productId, quantity: 1 })
+    });
+    if (res.ok) {
+      showToast('Produto adicionado ao carrinho!');
+      await loadCart();
+    } else {
+      showToast('Erro ao adicionar produto.');
     }
+  }
 
-    async function checkout() {
-      const res = await fetch('/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUserId })
-      });
-      if (res.ok) {
-        showToast('🎉 Pedido finalizado com sucesso!');
-        await loadCart();
-        await loadProducts();
-      } else {
-        const err = await res.json();
-        showToast(err.erro || 'Erro ao fechar pedido');
-      }
-        async function createProduct(e) {
-      e.preventDefault();
-      const body = {
-        name: document.getElementById('p-name').value,
-        price: parseFloat(document.getElementById('p-price').value),
-        stock: parseInt(document.getElementById('p-stock').value),
-        description: document.getElementById('p-description').value,
-        categoryId: document.getElementById('p-category')?.value || undefined
-      };
-
-      const res = await fetch('/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-
-      if (res.ok) {
-        showToast('Produto cadastrado com sucesso!');
-        e.target.reset();
-        await loadProducts();
-      } else {
-        const err = await res.json();
-        showToast(err.erro || err.error || 'Erro ao cadastrar produto.');
-      }
+  async function checkout() {
+    const res = await fetch('/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: currentUserId })
+    });
+    if (res.ok) {
+      showToast('🎉 Pedido finalizado com sucesso!');
+      await loadCart();
+      await loadProducts();
+    } else {
+      const err = await res.json();
+      showToast(err.erro || 'Erro ao fechar pedido');
     }
+  }
 
-    // Inicializa a página carregando os dados
-    loadProducts();
-    if (typeof loadCart === 'function') loadCart();
-  </script>
+  async function createProduct(e) {
+    e.preventDefault();
+    const body = {
+      name: document.getElementById('p-name').value,
+      price: parseFloat(document.getElementById('p-price').value),
+      stock: parseInt(document.getElementById('p-stock').value),
+      description: document.getElementById('p-desc').value,
+      categoryId: document.getElementById('p-category')?.value || defaultCategoryId || undefined
+    };
+
+    const res = await fetch('/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (res.ok) {
+      showToast('Produto cadastrado com sucesso!');
+      e.target.reset();
+      await loadProducts();
+    } else {
+      const err = await res.json();
+      showToast(err.erro || err.error || 'Erro ao cadastrar produto.');
+    }
+  }
+
+  // Inicializa a página carregando os dados
+  (async () => {
+    await initSession();
+    await loadProducts();
+    await loadCart();
+  })();
+</script>
 </body>
 </html>
