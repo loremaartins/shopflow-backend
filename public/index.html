@@ -283,10 +283,10 @@
 
   async function addToCart(productId) {
     if (!currentUserId) await initSession();
-    const res = await fetch('/cart', {
+    const res = await fetch(`/cart/${currentUserId}/items`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: currentUserId, productId, quantity: 1 })
+      body: JSON.stringify({ productId, quantity: 1 })
     });
     if (res.ok) {
       showToast('Produto adicionado ao carrinho!');
